@@ -5,9 +5,12 @@
  * and https://github.com/palantir/blueprint/blob/master/PATENTS
  */
 
-import { IProps, Popover, Position } from "@blueprintjs/core";
+import { Classes as CoreClasses, IProps, Popover, Position } from "@blueprintjs/core";
+
 import * as classNames from "classnames";
 import * as React from "react";
+
+import * as Classes from "../../common/classes";
 
 export enum TruncatedPopoverMode {
     ALWAYS,
@@ -29,7 +32,7 @@ export interface ITruncatedFormatProps extends IProps {
     /**
      * Sets the popover content style to `white-space: pre` if `true` or
      * `white-space: normal` if `false`.
-     * @default true
+     * @default false
      */
     preformatted?: boolean;
 
@@ -66,7 +69,7 @@ export interface ITruncatedFormatState {
 export class TruncatedFormat extends React.Component<ITruncatedFormatProps, ITruncatedFormatState> {
     public static defaultProps: ITruncatedFormatProps = {
         detectTruncation: true,
-        preformatted: true,
+        preformatted: false,
         showPopover: TruncatedPopoverMode.WHEN_TRUNCATED,
         truncateLength: 80,
         truncationSuffix: "...",
@@ -87,33 +90,39 @@ export class TruncatedFormat extends React.Component<ITruncatedFormatProps, ITru
 
         if (this.shouldShowPopover(content)) {
             const popoverClasses = classNames(
-                "bp-table-truncated-popover",
-                preformatted ? "bp-table-popover-whitespace-pre" : "bp-table-popover-whitespace-normal",
+                Classes.TABLE_TRUNCATED_POPOVER,
+                preformatted ? Classes.TABLE_POPOVER_WHITESPACE_PRE : Classes.TABLE_POPOVER_WHITESPACE_NORMAL,
             );
             const popoverContent = <div className={popoverClasses}>{children}</div>;
-            const className = classNames(this.props.className, "bp-table-truncated-format");
+            const className = classNames(this.props.className, Classes.TABLE_TRUNCATED_FORMAT);
             const constraints = [{
                 attachment: "together",
                 pin: true,
                 to: "window",
             }];
+
+            const iconClasses = classNames(
+                CoreClasses.ICON_STANDARD,
+                CoreClasses.iconClass("more"),
+            );
+
             return (
                 <div className={className}>
-                    <div className="bp-table-truncated-value" ref={this.handleContentDivRef}>{cellContent}</div>
+                    <div className={Classes.TABLE_TRUNCATED_VALUE} ref={this.handleContentDivRef}>{cellContent}</div>
                     <Popover
-                        className="bp-table-truncated-popover-target"
-                        constraints={constraints}
+                        className={Classes.TABLE_TRUNCATED_POPOVER_TARGET}
+                        tetherOptions={{ constraints }}
                         content={popoverContent}
                         position={Position.BOTTOM}
                         useSmartArrowPositioning
                         useSmartPositioning
                     >
-                        <span className="pt-icon-standard pt-icon-more"/>
+                        <span className={iconClasses}/>
                     </Popover>
                 </div>
             );
         } else {
-            const className = classNames(this.props.className, "bp-table-truncated-text");
+            const className = classNames(this.props.className, Classes.TABLE_TRUNCATED_TEXT);
             return <div className={className} ref={this.handleContentDivRef}>{cellContent}</div>;
         }
     }
@@ -149,7 +158,10 @@ export class TruncatedFormat extends React.Component<ITruncatedFormatProps, ITru
         if (!this.props.detectTruncation) {
             return;
         }
-        const isTruncated = this.contentDiv !== undefined && this.contentDiv.scrollWidth > this.contentDiv.clientWidth;
+
+        const isTruncated = this.contentDiv !== undefined &&
+            (this.contentDiv.scrollWidth > this.contentDiv.clientWidth ||
+            this.contentDiv.scrollHeight > this.contentDiv.clientHeight);
         if (this.state.isTruncated !== isTruncated) {
             this.setState({ isTruncated });
         }

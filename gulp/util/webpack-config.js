@@ -47,7 +47,9 @@ const TYPESCRIPT_CONFIG = {
 };
 
 const EXTERNALS = {
-    "@blueprintjs/core": "Blueprint",
+    "@blueprintjs/core": "var Blueprint.Core",
+    "@blueprintjs/datetime": "var Blueprint.Datetime",
+    "@blueprintjs/table": "var Blueprint.Table",
     "classnames": "classNames",
     "dom4": "window",
     "es6-shim": "window",
@@ -58,11 +60,8 @@ const EXTERNALS = {
     "react-day-picker": "DayPicker",
     "react-dom": "ReactDOM",
     "tether": "Tether",
-    "tslib": "tslib"
 };
 
-const ASSIGN_SIG = "var __assign = (this && this.__assign) || Object.assign || function(t) {";
-const EXTENDS_SIG = "var __extends = (this && this.__extends) || function (d, b) {";
 const ISTANBUL_IGNORE = "/* istanbul ignore next */";
 
 module.exports = {
@@ -92,7 +91,8 @@ module.exports = {
             externals: EXTERNALS,
             output: {
                 filename: `${project.id}.bundle.js`,
-                library: globalName(project.id),
+                library: ["Blueprint", globalName(project.id)],
+                libraryTarget: "umd",
                 path: path.join(project.cwd, "dist"),
             },
         }, DEFAULT_CONFIG);
@@ -123,16 +123,6 @@ module.exports = {
                     {
                         loader: "istanbul-instrumenter",
                         test: /src\/.*\.tsx?$/,
-                    },
-                    {
-                        loader: "string-replace",
-                        query: {
-                            multiple: [
-                                { search: ASSIGN_SIG, replace: ISTANBUL_IGNORE + "\n" + ASSIGN_SIG },
-                                { search: EXTENDS_SIG, replace: ISTANBUL_IGNORE + "\n" + EXTENDS_SIG },
-                            ],
-                        },
-                        test: /\.tsx$/,
                     },
                 ],
             }),
@@ -165,7 +155,9 @@ module.exports = {
                 library: project.webpack.global,
                 path: `${project.cwd}/${project.webpack.dest}`,
             },
-        }, TYPESCRIPT_CONFIG, { plugins: DEFAULT_CONFIG.plugins });
+        }, TYPESCRIPT_CONFIG, {
+            plugins: DEFAULT_CONFIG.plugins,
+        });
 
         if (project.webpack.localResolve != null) {
             returnVal.resolve.alias = project.webpack.localResolve.reduce((obj, pkg) => {

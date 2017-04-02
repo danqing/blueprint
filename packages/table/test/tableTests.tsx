@@ -9,6 +9,8 @@ import { expect } from "chai";
 import * as React from "react";
 
 import { Cell, Column, Table, TableLoadingOption } from "../src";
+import * as Classes from "../src/common/classes";
+import { Regions } from "../src/regions";
 import { CellType, expectCellLoading } from "./cellTestUtils";
 import { ElementHarness, ReactHarness } from "./harness";
 
@@ -32,8 +34,21 @@ describe("<Table>", () => {
             </Table>,
         );
 
-        expect(table.find(".bp-table-column-name-text", 2).text()).to.equal("My Name");
-        expect(table.find(".bp-table-column-name-text", 1).text()).to.equal("B");
+        expect(table.find(`.${Classes.TABLE_COLUMN_NAME_TEXT}`, 2).text()).to.equal("My Name");
+        expect(table.find(`.${Classes.TABLE_COLUMN_NAME_TEXT}`, 1).text()).to.equal("B");
+    });
+
+    it("Adds custom className to table container", () => {
+        const CLASS_NAME = "my-custom-class-name";
+        const table = harness.mount(
+            <Table className={CLASS_NAME}>
+                <Column />
+                <Column />
+                <Column />
+            </Table>,
+        );
+        const hasCustomClass = table.find(`.${Classes.TABLE_CONTAINER}`, 0).hasClass(CLASS_NAME);
+        expect(hasCustomClass).to.be.true;
     });
 
     it("Renders without ghost cells", () => {
@@ -43,8 +58,8 @@ describe("<Table>", () => {
             </Table>,
         );
 
-        expect(table.find(".bp-table-column-headers .bp-table-header", 0).element).to.be.ok;
-        expect(table.find(".bp-table-column-headers .bp-table-header", 1).element).to.not.be.ok;
+        expect(table.find(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`, 0).element).to.be.ok;
+        expect(table.find(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`, 1).element).to.not.be.ok;
     });
 
     it("Renders ghost cells", () => {
@@ -54,8 +69,8 @@ describe("<Table>", () => {
             </Table>,
         );
 
-        expect(table.find(".bp-table-column-headers .bp-table-header", 0).element).to.be.ok;
-        expect(table.find(".bp-table-column-headers .bp-table-header", 1).element).to.be.ok;
+        expect(table.find(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`, 0).element).to.be.ok;
+        expect(table.find(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`, 1).element).to.be.ok;
     });
 
     it("Renders correctly with loading options", () => {
@@ -74,14 +89,72 @@ describe("<Table>", () => {
 
         expect(tableHarness.element.textContent).to.equal("");
 
-        const cells = tableHarness.element.queryAll(".bp-table-cell");
+        const cells = tableHarness.element.queryAll(`.${Classes.TABLE_CELL}`);
         cells.forEach((cell) => expectCellLoading(cell, CellType.BODY_CELL));
 
-        const columnHeaders = tableHarness.element.queryAll(".bp-table-column-headers .bp-table-header");
+        const columnHeaders = tableHarness.element
+            .queryAll(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`);
         columnHeaders.forEach((columnHeader) => expectCellLoading(columnHeader, CellType.COLUMN_HEADER));
 
-        const rowHeaders = tableHarness.element.queryAll(".bp-table-row-headers .bp-table-header");
+        const rowHeaders = tableHarness.element.queryAll(`.${Classes.TABLE_ROW_HEADERS} .${Classes.TABLE_HEADER}`);
         rowHeaders.forEach((rowHeader) => expectCellLoading(rowHeader, CellType.ROW_HEADER));
+    });
+
+    it("Selects all on click of upper-left corner", () => {
+        const renderCell = () => <Cell>gg</Cell>;
+        const onSelection = sinon.spy();
+
+        const table = harness.mount(
+            <Table
+                onSelection={onSelection}
+                numRows={10}
+            >
+                <Column renderCell={renderCell}/>
+                <Column renderCell={renderCell}/>
+                <Column renderCell={renderCell}/>
+            </Table>,
+        );
+        const menu = table.find(`.${Classes.TABLE_MENU}`);
+        menu.mouse("click");
+        expect(onSelection.args[0][0]).to.deep.equal([Regions.table()]);
+    });
+
+    it("Resizes selected rows together", () => {
+        const renderCell = () => <Cell>gg</Cell>;
+
+        const selectedRegions = [Regions.row(0, 1), Regions.row(4, 6), Regions.row(8)];
+
+        const table = harness.mount(
+            // set the row height so small so they can all fit in the viewport and be rendered
+            <Table
+                numRows={10}
+                isRowResizable={true}
+                selectedRegions={selectedRegions}
+                defaultRowHeight={1}
+                minRowHeight={1}
+            >
+                <Column renderCell={renderCell}/>
+                <Column renderCell={renderCell}/>
+                <Column renderCell={renderCell}/>
+            </Table>,
+        );
+
+        const rows = table.find(`.${Classes.TABLE_ROW_HEADERS}`);
+        const resizeHandleTarget = rows.find(`.${Classes.TABLE_RESIZE_HANDLE_TARGET}`, 0);
+        resizeHandleTarget.mouse("mousemove")
+            .mouse("mousedown")
+            .mouse("mousemove", 0, 2)
+            .mouse("mouseup");
+
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 0).bounds().height).to.equal(3);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 1).bounds().height).to.equal(3);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 2).bounds().height).to.equal(1);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 3).bounds().height).to.equal(1);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 4).bounds().height).to.equal(3);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 5).bounds().height).to.equal(3);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 6).bounds().height).to.equal(3);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 7).bounds().height).to.equal(1);
+        expect(rows.find(`.${Classes.TABLE_HEADER}`, 8).bounds().height).to.equal(3);
     });
 
     xit("Accepts a sparse array of column widths", () => {
@@ -93,17 +166,17 @@ describe("<Table>", () => {
             </Table>,
         );
 
-        const columns = table.find(".bp-table-column-headers");
-        expect(columns.find(".bp-table-header", 0).bounds().width).to.equal(75);
-        expect(columns.find(".bp-table-header", 1).bounds().width).to.equal(200);
-        expect(columns.find(".bp-table-header", 2).bounds().width).to.equal(75);
+        const columns = table.find(`.${Classes.TABLE_COLUMN_HEADERS}`);
+        expect(columns.find(`.${Classes.TABLE_HEADER}`, 0).bounds().width).to.equal(75);
+        expect(columns.find(`.${Classes.TABLE_HEADER}`, 1).bounds().width).to.equal(200);
+        expect(columns.find(`.${Classes.TABLE_HEADER}`, 2).bounds().width).to.equal(75);
     });
 
     xdescribe("Persists column widths", () => {
         const expectHeaderWidth = (table: ElementHarness, index: number, width: number) => {
             expect(table
-                .find(".bp-table-column-headers")
-                .find(".bp-table-header", index)
+                .find(`.${Classes.TABLE_COLUMN_HEADERS}`)
+                .find(`.${Classes.TABLE_HEADER}`, index)
                 .bounds().width,
             ).to.equal(width);
         };

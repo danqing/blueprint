@@ -41,7 +41,6 @@ Styleguide components.callout.css
 
 .pt-callout {
   @include running-typography-small();
-
   position: relative;
   border-radius: $pt-border-radius;
   background-color: rgba($gray3, 0.15);
@@ -53,7 +52,6 @@ Styleguide components.callout.css
     &::before {
       @include pt-icon($pt-icon-size-large);
       @include position(absolute, $pt-grid-size null null $pt-grid-size);
-
       color: $pt-icon-color;
     }
   }
@@ -76,10 +74,7 @@ Styleguide components.callout.css
     &.pt-intent-#{$intent} {
       background-color: rgba($color, 0.15);
 
-      &[class*="pt-icon-"]::before {
-        color: $color;
-      }
-
+      &[class*="pt-icon-"]::before,
       h5 {
         color: map-get($pt-intent-text-colors, $intent);
       }
@@ -87,6 +82,7 @@ Styleguide components.callout.css
       .pt-dark & {
         background-color: rgba($color, 0.25);
 
+        &[class*="pt-icon-"]::before,
         h5 {
           color: map-get($pt-dark-intent-text-colors, $intent);
         }

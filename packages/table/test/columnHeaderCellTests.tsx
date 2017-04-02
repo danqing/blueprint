@@ -11,12 +11,13 @@ import { Menu, MenuItem } from "@blueprintjs/core";
 import { expect } from "chai";
 import * as React from "react";
 
+import * as Classes from "../src/common/classes";
 import { ColumnHeaderCell } from "../src/index";
 import { ElementHarness, ReactHarness } from "./harness";
 import { createTableOfSize } from "./mocks/table";
 
 describe("<ColumnHeaderCell>", () => {
-    let harness = new ReactHarness();
+    const harness = new ReactHarness();
 
     afterEach(() => {
         harness.unmount();
@@ -28,8 +29,15 @@ describe("<ColumnHeaderCell>", () => {
 
     it("Default renderer", () => {
         const table = harness.mount(createTableOfSize(3, 2));
-        const text = table.find(".bp-table-column-name-text", 1).element.textContent;
+        const text = table.find(`.${Classes.TABLE_COLUMN_NAME_TEXT}`, 1).element.textContent;
         expect(text).to.equal("B");
+    });
+
+    it("renders with custom className if provided", () => {
+        const CLASS_NAME = "my-custom-class-name";
+        const table = harness.mount(<ColumnHeaderCell className={CLASS_NAME} />);
+        const hasCustomClass = table.find(`.${Classes.TABLE_HEADER}`, 0).hasClass(CLASS_NAME);
+        expect(hasCustomClass).to.be.true;
     });
 
     describe("Custom renderer", () => {
@@ -40,7 +48,7 @@ describe("<ColumnHeaderCell>", () => {
                 );
             };
             const table = harness.mount(createTableOfSize(3, 2, {renderColumnHeader}));
-            const text = table.find(".bp-table-column-name-text", 1).element.textContent;
+            const text = table.find(`.${Classes.TABLE_COLUMN_NAME_TEXT}`, 1).element.textContent;
             expect(text).to.equal("COLUMN-1");
         });
 
@@ -53,7 +61,7 @@ describe("<ColumnHeaderCell>", () => {
                 );
             };
             const table = harness.mount(createTableOfSize(3, 2, {renderColumnHeader}));
-            const text = table.find(".bp-table-header-content h4", 2).element.textContent;
+            const text = table.find(`.${Classes.TABLE_HEADER_CONTENT} h4`, 2).element.textContent;
             expect(text).to.equal("Header of 2");
         });
 
@@ -86,8 +94,8 @@ describe("<ColumnHeaderCell>", () => {
             };
             const table = harness.mount(createTableOfSize(3, 2, {renderColumnHeader}));
 
-            table.find(".bp-table-column-headers").mouse("mousemove");
-            table.find(".bp-table-th-menu").mouse("mousemove").mouse("click");
+            table.find(`.${Classes.TABLE_COLUMN_HEADERS}`).mouse("mousemove");
+            table.find(`.${Classes.TABLE_TH_MENU}`).mouse("mousemove").mouse("click");
             ElementHarness.document().find(".pt-icon-export").mouse("click");
             expect(menuClickSpy.called).to.be.true;
         });
@@ -97,8 +105,9 @@ describe("<ColumnHeaderCell>", () => {
                 return <ColumnHeaderCell loading={columnIndex === 0} name="Column Header" />;
             };
             const table = harness.mount(createTableOfSize(2, 1, { renderColumnHeader }));
-            expect(table.find(".bp-table-column-headers .bp-table-header", 0).text()).to.equal("");
-            expect(table.find(".bp-table-column-headers .bp-table-header", 1).text()).to.equal("Column Header");
+            expect(table.find(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`, 0).text()).to.equal("");
+            expect(table.find(`.${Classes.TABLE_COLUMN_HEADERS} .${Classes.TABLE_HEADER}`, 1).text())
+                .to.equal("Column Header");
         });
     });
 });

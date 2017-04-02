@@ -5,6 +5,7 @@
  * and https://github.com/palantir/blueprint/blob/master/PATENTS
  */
 
+import * as Classes from "./common/classes";
 import { Utils } from "./common/utils";
 
 /**
@@ -40,6 +41,7 @@ export enum RegionCardinality {
  */
 export const SelectionModes = {
     ALL: [
+        RegionCardinality.FULL_TABLE,
         RegionCardinality.FULL_COLUMNS,
         RegionCardinality.FULL_ROWS,
         RegionCardinality.CELLS,
@@ -116,7 +118,18 @@ export class Regions {
      *         cols: [1, 2]
      *     }
      *
-     * In this case, this method would return RegionCardinality.FULL_COLUMNS.
+     * In this case, this method would return `RegionCardinality.FULL_COLUMNS`.
+     *
+     * If both rows and columns are unbounded, then the region covers the
+     * entire table. Therefore, a region like this:
+     *
+     *     {
+     *         rows: null,
+     *         cols: null
+     *     }
+     *
+     * will return `RegionCardinality.FULL_TABLE`.
+     *
      * An example of a region containing a single cell in the table would be:
      *
      *     {
@@ -124,7 +137,7 @@ export class Regions {
      *         cols: [2, 2]
      *     }
      *
-     * In this case, this method would return RegionCardinality.CELLS.
+     * In this case, this method would return `RegionCardinality.CELLS`.
      */
     public static getRegionCardinality(region: IRegion) {
         if (region.cols != null && region.rows != null) {
@@ -163,11 +176,18 @@ export class Regions {
     }
 
     /**
+     * Returns a region containing the entire table.
+     */
+    public static table(): IRegion  {
+        return {};
+    }
+
+    /**
      * Adds the region to the end of a cloned copy of the supplied region
      * array.
      */
     public static add(regions: IRegion[], region: IRegion) {
-        let copy = regions.slice();
+        const copy = regions.slice();
         copy.push(region);
         return copy;
     }
@@ -177,7 +197,7 @@ export class Regions {
      * array.
      */
     public static update(regions: IRegion[], region: IRegion) {
-        let copy = regions.slice();
+        const copy = regions.slice();
         copy.pop();
         copy.push(region);
         return copy;
@@ -257,6 +277,24 @@ export class Regions {
     }
 
     /**
+     * Returns true if the regions contain a region that has FULL_TABLE cardinality
+     */
+    public static hasFullTable(regions: IRegion[]) {
+        if (regions == null) {
+            return false;
+        }
+
+        for (const region of regions) {
+            const cardinality = Regions.getRegionCardinality(region);
+            if (cardinality === RegionCardinality.FULL_TABLE) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Returns true if the regions contain the query region. The query region
      * may be a subset of the `regions` parameter.
      */
@@ -307,6 +345,25 @@ export class Regions {
                     if (!seen[col]) {
                         seen[col] = true;
                         iteratee(col);
+                    }
+                }
+            }
+        });
+    }
+
+    public static eachUniqueFullRow(regions: IRegion[], iteratee: (row: number) => void) {
+        if (regions == null || regions.length === 0 || iteratee == null) {
+            return;
+        }
+
+        const seen: {[row: number]: boolean} = {};
+        regions.forEach((region: IRegion) => {
+            if (Regions.getRegionCardinality(region) === RegionCardinality.FULL_ROWS) {
+                const [ start, end ] = region.rows;
+                for (let row = start; row <= end; row++) {
+                    if (!seen[row]) {
+                        seen[row] = true;
+                        iteratee(row);
                     }
                 }
             }
@@ -417,7 +474,7 @@ export class Regions {
         }
         if (selectedRegions != null && selectedRegions.length > 0) {
             regionGroups.push({
-                className: "bp-table-selection-region",
+                className: Classes.TABLE_SELECTION_REGION,
                 regions: selectedRegions,
             });
         }

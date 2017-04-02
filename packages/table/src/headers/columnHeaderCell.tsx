@@ -9,14 +9,13 @@ import * as classNames from "classnames";
 import * as PureRender from "pure-render-decorator";
 import * as React from "react";
 
-import { Classes, ContextMenuTarget, IProps, Popover, Position } from "@blueprintjs/core";
+import { Classes as CoreClasses, ContextMenuTarget, IProps, Popover, Position } from "@blueprintjs/core";
 
+import * as Classes from "../common/classes";
 import { LoadableContent } from "../common/loadableContent";
 import { ResizeHandle } from "../interactions/resizeHandle";
 
-export interface IColumnHeaderRenderer {
-    (columnIndex: number): React.ReactElement<IColumnHeaderCellProps>;
-}
+export type IColumnHeaderRenderer = (columnIndex: number) => React.ReactElement<IColumnHeaderCellProps>;
 
 export interface IColumnNameProps {
     /**
@@ -79,7 +78,7 @@ export interface IColumnHeaderCellProps extends IColumnNameProps, IProps {
 
     /**
      * The icon name for the header's menu button.
-     * @default 'more'
+     * @default 'chevron-down'
      */
     menuIconName?: string;
 
@@ -100,14 +99,8 @@ export interface IColumnHeaderState {
     isActive: boolean;
 }
 
-const HEADER_CLASSNAME = "bp-table-header";
-const HEADER_COLUMN_NAME_CLASSNAME = "bp-table-column-name";
-const HEADER_CONTENT_CLASSNAME = "bp-table-header-content";
-const HEADER_COLUMN_NAME_TEXT_CLASSNAME = "bp-table-column-name-text";
-const HEADER_INTERACTION_BAR_CLASSNAME = "bp-table-interaction-bar";
-
 export function HorizontalCellDivider(): JSX.Element {
-    return <div className="bp-table-horizontal-cell-divider" />;
+    return <div className={Classes.TABLE_HORIZONTAL_CELL_DIVIDER}/>;
 }
 
 @ContextMenuTarget
@@ -115,7 +108,7 @@ export function HorizontalCellDivider(): JSX.Element {
 export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IColumnHeaderState> {
     public static defaultProps: IColumnHeaderCellProps = {
         isActive: false,
-        menuIconName: "more",
+        menuIconName: "chevron-down",
         useInteractionBar: false,
     };
 
@@ -127,10 +120,10 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
      * their mouse events.
      */
     public static isHeaderMouseTarget(target: HTMLElement) {
-        return target.classList.contains(HEADER_CLASSNAME)
-            || target.classList.contains(HEADER_COLUMN_NAME_CLASSNAME)
-            || target.classList.contains(HEADER_INTERACTION_BAR_CLASSNAME)
-            || target.classList.contains(HEADER_CONTENT_CLASSNAME);
+        return target.classList.contains(Classes.TABLE_HEADER)
+            || target.classList.contains(Classes.TABLE_COLUMN_NAME)
+            || target.classList.contains(Classes.TABLE_INTERACTION_BAR)
+            || target.classList.contains(Classes.TABLE_HEADER_CONTENT);
     }
 
     public state = {
@@ -138,12 +131,12 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
     };
 
     public render() {
-        const { isActive, isColumnSelected, loading, resizeHandle, style } = this.props;
-        const classes = classNames(HEADER_CLASSNAME, {
-            "bp-table-header-active": isActive || this.state.isActive,
-            "bp-table-header-selected": isColumnSelected,
-            [Classes.LOADING]: loading,
-        });
+        const { className, isActive, isColumnSelected, loading, resizeHandle, style } = this.props;
+        const classes = classNames(Classes.TABLE_HEADER, {
+            [Classes.TABLE_HEADER_ACTIVE]: isActive || this.state.isActive,
+            [Classes.TABLE_HEADER_SELECTED]: isColumnSelected,
+            [CoreClasses.LOADING]: loading,
+        }, className);
 
         return (
             <div className={classes} style={style}>
@@ -161,7 +154,7 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
     private renderName() {
         const { loading, name, renderName, useInteractionBar } = this.props;
         const dropdownMenu = this.maybeRenderDropdownMenu();
-        const defaultName = <div className="bp-table-truncated-text">{name}</div>;
+        const defaultName = <div className={Classes.TABLE_TRUNCATED_TEXT}>{name}</div>;
         const nameComponent = (
             <LoadableContent loading={loading} variableLength={true}>
                 {renderName == null ? defaultName : renderName(name)}
@@ -169,17 +162,17 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
         );
         if (useInteractionBar) {
             return (
-                <div className={HEADER_COLUMN_NAME_CLASSNAME} title={name}>
-                    <div className={HEADER_INTERACTION_BAR_CLASSNAME}>{dropdownMenu}</div>
+                <div className={Classes.TABLE_COLUMN_NAME} title={name}>
+                    <div className={Classes.TABLE_INTERACTION_BAR}>{dropdownMenu}</div>
                     <HorizontalCellDivider />
-                    <div className={HEADER_COLUMN_NAME_TEXT_CLASSNAME}>{nameComponent}</div>
+                    <div className={Classes.TABLE_COLUMN_NAME_TEXT}>{nameComponent}</div>
                 </div>
             );
         } else {
             return (
-                <div className={HEADER_COLUMN_NAME_CLASSNAME} title={name}>
+                <div className={Classes.TABLE_COLUMN_NAME} title={name}>
                     {dropdownMenu}
-                    <div className={HEADER_COLUMN_NAME_TEXT_CLASSNAME}>{nameComponent}</div>
+                    <div className={Classes.TABLE_COLUMN_NAME_TEXT}>{nameComponent}</div>
                 </div>
             );
         }
@@ -191,7 +184,7 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
         }
 
         return (
-            <div className={HEADER_CONTENT_CLASSNAME}>
+            <div className={Classes.TABLE_HEADER_CONTENT}>
                 {this.props.children}
             </div>
         );
@@ -204,7 +197,11 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
             return undefined;
         }
 
-        const popoverTargetClasses = classNames("pt-icon-standard", Classes.iconClass(menuIconName));
+        const popoverTargetClasses = classNames(
+            CoreClasses.ICON_STANDARD,
+            CoreClasses.iconClass(menuIconName),
+        );
+
         const constraints = [{
             attachment: "together",
             pin: true,
@@ -213,10 +210,10 @@ export class ColumnHeaderCell extends React.Component<IColumnHeaderCellProps, IC
 
         return (
             <Popover
-                constraints={constraints}
+                tetherOptions={{ constraints }}
                 content={menu}
                 position={Position.BOTTOM}
-                className="bp-table-th-menu"
+                className={Classes.TABLE_TH_MENU}
                 popoverDidOpen={this.getPopoverStateChangeHandler(true)}
                 popoverWillClose={this.getPopoverStateChangeHandler(false)}
                 useSmartArrowPositioning={true}

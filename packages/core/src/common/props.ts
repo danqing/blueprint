@@ -80,8 +80,8 @@ export interface IOptionProps extends IProps {
 
 /** A collection of curated prop keys used across our Components which are not valid HTMLElement props. */
 const INVALID_PROPS = [
+    "active",
     "containerRef",
-    "defaultIndeterminate",
     "elementRef",
     "iconName",
     "inputRef",

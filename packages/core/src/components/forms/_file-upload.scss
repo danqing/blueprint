@@ -19,15 +19,20 @@ Wrap that all in a `label` with class `pt-file-upload`.
 </div>
 
 Markup:
-<label class="pt-file-upload">
-  <input type="file" />
+<label class="pt-file-upload {{.modifier}}">
+  <input type="file" {{:modifier}}/>
   <span class="pt-file-upload-input">Choose file...</span>
 </label>
+
+:disabled - Disabled
+.pt-fill - Take up full width of parent element
 
 Weight: 10
 
 Styleguide components.forms.fileupload
 */
+
+$file-upload-button-width: $pt-grid-size * 7;
 
 .pt-file-upload {
   display: inline-block;
@@ -39,16 +44,36 @@ Styleguide components.forms.fileupload
     opacity: 0;
     margin: 0;
     min-width: $pt-grid-size * 20;
+
+    // unlike other form controls that directly style native elements,
+    // pt-file-upload wraps and hides the native element for better control over
+    // visual styles. to disable, we need to disable the hidden child input, not
+    // the surrounding wrapper. see #689 for gory details.
+    &:disabled + .pt-file-upload-input,
+    &.pt-disabled + .pt-file-upload-input {
+      @include pt-input-disabled();
+
+      &::after {
+        @include pt-button-disabled();
+      }
+
+      .pt-dark & {
+        @include pt-dark-input-disabled();
+
+        &::after {
+          @include pt-dark-button-disabled();
+        }
+      }
+    }
   }
 
   .pt-file-upload-input {
     @include pt-input();
-
     position: absolute;
     top: 0;
     right: 0;
     left: 0;
-    margin-right: $pt-grid-size * 7;
+    margin-right: $file-upload-button-width;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
     height: $pt-input-height;
@@ -58,7 +83,6 @@ Styleguide components.forms.fileupload
 
     &::after {
       @include pt-button();
-
       position: absolute;
       top: 0;
       right: 0;
@@ -67,7 +91,8 @@ Styleguide components.forms.fileupload
       border-radius: $pt-border-radius;
       border-top-left-radius: 0;
       border-bottom-left-radius: 0;
-      width: $pt-grid-size * 7;
+      // compensating for the negative margin-left above
+      width: $file-upload-button-width + $button-border-width;
       height: $pt-input-height;
       padding: 0 $pt-grid-size;
       text-align: center;
@@ -85,7 +110,6 @@ Styleguide components.forms.fileupload
 
     .pt-dark & {
       @include pt-dark-input();
-
       color: $pt-dark-text-color-muted;
 
       &::after {
@@ -100,5 +124,9 @@ Styleguide components.forms.fileupload
         @include pt-dark-button-active();
       }
     }
+  }
+
+  &.pt-fill {
+    width: 100%;
   }
 }

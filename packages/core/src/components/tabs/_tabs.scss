@@ -43,7 +43,13 @@ Styleguide components.tabs.css
 */
 
 /*
-JavaScript API
+Deprecated JavaScript API
+
+<div class="pt-callout pt-intent-danger pt-icon-error">
+  <h5>Deprecated in v1.11.0</h5>
+  This `Tabs` API has been deprecated in v1.11.0 favor of the simpler and more flexible
+  `Tabs2` API [described above](#components.tabs.js).
+</div>
 
 The `Tabs`, `TabList`, `Tab`, and `TabPanel` components are available in the __@blueprintjs/core__
 package. Make sure to review the [general usage docs for JS components](#components.usage).
@@ -57,6 +63,8 @@ because of how the library manages the virtual DOM for you.
 ### Sample Usage
 
 ```
+import { Tab, TabList, TabPanel, Tabs } from "@blueprintjs/core";
+
 <Tabs>
     <TabList>
         <Tab>First tab</Tab>
@@ -87,7 +95,9 @@ between these approaches.
 
 @react-example TabsExample
 
-Styleguide components.tabs.js
+Weight: 10
+
+Styleguide components.tabs.deprecated
 */
 
 /*
@@ -95,7 +105,7 @@ Tabs props
 
 @interface ITabsProps
 
-Styleguide components.tabs.js.tabs
+Styleguide components.tabs.deprecated.tabs
 */
 
 /*
@@ -103,7 +113,7 @@ Tab props
 
 @interface ITabProps
 
-Styleguide components.tabs.js.tab
+Styleguide components.tabs.deprecated.tab
 */
 
 /*
@@ -149,7 +159,7 @@ render(
 
 Weight: 3
 
-Styleguide components.tabs.js.router
+Styleguide components.tabs.deprecated.router
 */
 
 $tab-color-selected: $pt-link-color !default;
@@ -202,15 +212,15 @@ $tab-indicator-width: 3px !default;
   padding: 0;
   list-style: none;
 
-  &.pt-large .pt-tab {
-    line-height: $pt-button-height-large;
-    font-size: $pt-font-size-large;
+  // this is fine.
+  // stylelint-disable-next-line selector-no-universal
+  > *:not(:last-child) {
+    margin-right: $pt-grid-size * 2;
   }
 }
 
 .pt-tab {
   @include overflow-ellipsis();
-
   flex: 0 0 auto;
   position: relative;
   cursor: pointer;
@@ -223,13 +233,8 @@ $tab-indicator-width: 3px !default;
   .pt-tab-indicator-wrapper ~ & {
     // the bottom border is only for static markup, therefore
     // we never want a bottom border if there's a tab indicator
-    // stylelint-disable declaration-no-important
+    // stylelint-disable-next-line declaration-no-important
     box-shadow: none !important;
-    // stylelint-enable declaration-no-important
-  }
-
-  &:not(:last-of-type) {
-    margin-right: $pt-grid-size * 2;
   }
 
   &[aria-disabled="true"] {
@@ -239,7 +244,7 @@ $tab-indicator-width: 3px !default;
 
   &[aria-selected="true"] {
     border-radius: 0;
-    box-shadow: inset 0 (-$tab-indicator-width) 0 $tab-color-selected;
+    box-shadow: inset 0 (- $tab-indicator-width) 0 $tab-color-selected;
   }
 
   &[aria-selected="true"],
@@ -249,6 +254,11 @@ $tab-indicator-width: 3px !default;
 
   &:focus {
     -moz-outline-radius: 0;
+  }
+
+  .pt-large & {
+    line-height: $pt-button-height-large;
+    font-size: $pt-font-size-large;
   }
 }
 
@@ -265,7 +275,6 @@ $tab-indicator-width: 3px !default;
   top: 0;
   left: 0;
   transform: translateX(0), translateY(0);
-
   transition: height, transform, width;
   transition-duration: $pt-transition-duration * 2;
   transition-timing-function: $pt-transition-ease;
@@ -273,7 +282,6 @@ $tab-indicator-width: 3px !default;
 
   .pt-tab-indicator {
     @include position(absolute, null 0 0);
-
     background-color: $tab-color-selected;
     height: $tab-indicator-width;
   }
@@ -292,7 +300,7 @@ $tab-indicator-width: 3px !default;
     }
 
     &[aria-selected="true"] {
-      box-shadow: inset 0 (-$tab-indicator-width) 0 $dark-tab-color-selected;
+      box-shadow: inset 0 (- $tab-indicator-width) 0 $dark-tab-color-selected;
     }
 
     &[aria-selected="true"],
@@ -304,4 +312,8 @@ $tab-indicator-width: 3px !default;
   .pt-tab-indicator {
     background-color: $dark-tab-color-selected;
   }
+}
+
+.pt-flex-expander {
+  flex: 1 1;
 }

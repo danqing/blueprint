@@ -20,6 +20,7 @@ describe("<DateRangePicker>", () => {
     let testsContainerElement: Element;
     let dateRangePicker: DateRangePicker;
     let onDateRangePickerChangeSpy: Sinon.SinonSpy;
+    let onDateRangePickerHoverChangeSpy: Sinon.SinonSpy;
 
     before(() => {
         // this is essentially what TestUtils.renderIntoDocument does
@@ -57,8 +58,8 @@ describe("<DateRangePicker>", () => {
             const maxDate = new Date(2020, Months.JANUARY);
             const minDate = new Date(2000, Months.JANUARY);
             renderDateRangePicker({ defaultValue, initialMonth, maxDate, minDate });
-            assert.equal(dateRangePicker.state.displayYear, 2002);
-            assert.equal(dateRangePicker.state.displayMonth, Months.MARCH);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2002);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
         });
 
         it("is defaultValue if set and initialMonth not set", () => {
@@ -66,8 +67,8 @@ describe("<DateRangePicker>", () => {
             const maxDate = new Date(2020, Months.JANUARY);
             const minDate = new Date(2000, Months.JANUARY);
             renderDateRangePicker({ defaultValue, maxDate, minDate });
-            assert.equal(dateRangePicker.state.displayYear, 2007);
-            assert.equal(dateRangePicker.state.displayMonth, Months.APRIL);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2007);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.APRIL);
         });
 
         it("is value if set and initialMonth not set", () => {
@@ -75,8 +76,8 @@ describe("<DateRangePicker>", () => {
             const minDate = new Date(2000, Months.JANUARY);
             const value = [new Date(2007, Months.APRIL, 4), null] as DateRange;
             renderDateRangePicker({ maxDate, minDate, value });
-            assert.equal(dateRangePicker.state.displayYear, 2007);
-            assert.equal(dateRangePicker.state.displayMonth, Months.APRIL);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2007);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.APRIL);
         });
 
         it("is today if only maxDate/minDate set and today is in date range", () => {
@@ -84,16 +85,18 @@ describe("<DateRangePicker>", () => {
             const minDate = new Date(2000, Months.JANUARY);
             const today = new Date();
             renderDateRangePicker({ maxDate, minDate});
-            assert.equal(dateRangePicker.state.displayYear, today.getFullYear());
-            assert.equal(dateRangePicker.state.displayMonth, today.getMonth());
+            assert.equal(dateRangePicker.state.leftView.getYear(), today.getFullYear());
+            assert.equal(dateRangePicker.state.leftView.getMonth(), today.getMonth());
         });
 
         it("is a day between minDate and maxDate if only maxDate/minDate set and today is not in range", () => {
             const maxDate = new Date(2005, Months.JANUARY);
             const minDate = new Date(2000, Months.JANUARY);
             renderDateRangePicker({ maxDate, minDate });
-            const { displayMonth, displayYear } = dateRangePicker.state;
-            assert.isTrue(DateUtils.isDayInRange(new Date(displayYear, displayMonth), [minDate, maxDate]));
+            const leftView = dateRangePicker.state.leftView;
+            assert.isTrue(DateUtils.isDayInRange(
+                new Date(leftView.getYear(), leftView.getMonth()), [minDate, maxDate],
+            ));
         });
 
         it("is initialMonth - 1 if initialMonth === maxDate month", () => {
@@ -105,17 +108,17 @@ describe("<DateRangePicker>", () => {
 
             renderDateRangePicker({ initialMonth, maxDate, minDate });
 
-            assert.equal(dateRangePicker.state.displayYear, MAX_YEAR);
-            assert.equal(dateRangePicker.state.displayMonth, Months.NOVEMBER);
+            assert.equal(dateRangePicker.state.leftView.getYear(), MAX_YEAR);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.NOVEMBER);
         });
 
         it("is value - 1 if set and initialMonth not set and value month === maxDate month", () => {
-            const value = [new Date(2017, 9, 4), null] as DateRange;
-            const maxDate = new Date(2017, 9, 15);
+            const value = [new Date(2017, Months.OCTOBER, 4), null] as DateRange;
+            const maxDate = new Date(2017, Months.OCTOBER, 15);
 
             renderDateRangePicker({ maxDate, value });
-            assert.equal(dateRangePicker.state.displayYear, 2017);
-            assert.equal(dateRangePicker.state.displayMonth, 8);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2017);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.SEPTEMBER);
         });
 
         it("is initialMonth if initialMonth === minDate month and initialMonth === maxDate month", () => {
@@ -127,8 +130,147 @@ describe("<DateRangePicker>", () => {
 
             renderDateRangePicker({ initialMonth, maxDate, minDate });
 
-            assert.equal(dateRangePicker.state.displayYear, YEAR);
-            assert.equal(dateRangePicker.state.displayMonth, Months.DECEMBER);
+            assert.equal(dateRangePicker.state.leftView.getYear(), YEAR);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.DECEMBER);
+        });
+    });
+
+    describe("left/right calendar when not sequential", () => {
+        it("only shows one calendar when minDate and maxDate are in the same month", () => {
+            const contiguousCalendarMonths = false;
+            const minDate = new Date(2015, Months.DECEMBER, 1);
+            const maxDate = new Date(2015, Months.DECEMBER, 15);
+
+            renderDateRangePicker({ contiguousCalendarMonths, maxDate, minDate });
+            assert.lengthOf(document.getElementsByClassName("DayPicker"), 1);
+            assert.lengthOf(document.getElementsByClassName("DayPicker-NavButton--prev"), 0);
+            assert.lengthOf(document.getElementsByClassName("DayPicker-NavButton--next"), 0);
+        });
+
+        it("left calendar is bound between minDate and (maxDate - 1 month)", () => {
+            const contiguousCalendarMonths = false;
+            const minDate = new Date(2015, Months.JANUARY, 1);
+            const maxDate = new Date(2015, Months.DECEMBER, 15);
+
+            renderDateRangePicker({ contiguousCalendarMonths, maxDate, minDate });
+            const monthSelects = getMonthSelect().children;
+            assert.equal(monthSelects[0].getAttribute("value"), Months.JANUARY);
+            assert.equal(monthSelects[monthSelects.length - 1].getAttribute("value"), Months.NOVEMBER);
+        });
+
+        it("right calendar is bound between (minDate + 1 month) and maxDate", () => {
+            const contiguousCalendarMonths = false;
+            const minDate = new Date(2015, Months.JANUARY, 1);
+            const maxDate = new Date(2015, Months.DECEMBER, 15);
+
+            renderDateRangePicker({ contiguousCalendarMonths, maxDate, minDate });
+            const monthSelects = getMonthSelect(false).children;
+            assert.equal(monthSelects[0].getAttribute("value"), Months.FEBRUARY);
+            assert.equal(monthSelects[monthSelects.length - 1].getAttribute("value"), Months.DECEMBER);
+        });
+
+        it("left calendar can be altered independently of right calendar", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2015, Months.MAY, 5);
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MAY);
+            const prevBtn = document.queryAll(".DayPicker-NavButton--prev");
+            const nextBtn = document.queryAll(".DayPicker-NavButton--next");
+
+            TestUtils.Simulate.click(prevBtn[0]);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.APRIL);
+            TestUtils.Simulate.click(nextBtn[0]);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MAY);
+        });
+
+        it("right calendar can be altered independently of left calendar", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2015, Months.MAY, 5);
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JUNE);
+            const prevBtn = document.queryAll(".DayPicker-NavButton--prev");
+            const nextBtn = document.queryAll(".DayPicker-NavButton--next");
+
+            TestUtils.Simulate.click(nextBtn[1]);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JULY);
+            TestUtils.Simulate.click(prevBtn[1]);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JUNE);
+        });
+
+        it("changing left calendar with month dropdown to be equal or after right calendar, shifts the right", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2015, Months.MAY, 5);
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MAY);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JUNE);
+            TestUtils.Simulate.change(getMonthSelect(), { target: { value: Months.AUGUST } } as any);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.AUGUST);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.SEPTEMBER);
+        });
+
+        it("changing right calendar with month dropdown to be equal or before left calendar, shifts the left", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2015, Months.MAY, 5);
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MAY);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JUNE);
+            TestUtils.Simulate.change(getMonthSelect(false), { target: { value: Months.APRIL } } as any);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.APRIL);
+        });
+
+        it("changing left calendar with year dropdown to be equal or after right calendar, shifts the right", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2013, Months.MAY, 5);
+            const NEW_YEAR = 2014;
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            TestUtils.Simulate.change(getYearSelect(), { target: { value: NEW_YEAR } } as any);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MAY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), NEW_YEAR);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JUNE);
+            assert.equal(dateRangePicker.state.rightView.getYear(), NEW_YEAR);
+        });
+
+        it("changing right calendar with year dropdown to be equal or before left calendar, shifts the left", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2013, Months.MAY, 5);
+            const NEW_YEAR = 2012;
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            TestUtils.Simulate.change(getYearSelect(false), { target: { value: NEW_YEAR } } as any);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MAY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), NEW_YEAR);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JUNE);
+            assert.equal(dateRangePicker.state.rightView.getYear(), NEW_YEAR);
+        });
+
+        it("changing left calendar with navButton to equal right calendar, shifts the right", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2015, Months.MAY, 5);
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            const nextBtn = document.queryAll(".DayPicker-NavButton--next");
+
+            TestUtils.Simulate.click(nextBtn[0]);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JUNE);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.JULY);
+        });
+
+        it("changing right calendar with navButton to equal left calendar, shifts the left", () => {
+            const contiguousCalendarMonths = false;
+            const initialMonth = new Date(2015, Months.MAY, 5);
+
+            renderDateRangePicker({ initialMonth, contiguousCalendarMonths });
+            const prevBtn = document.queryAll(".DayPicker-NavButton--prev");
+
+            TestUtils.Simulate.click(prevBtn[1]);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.APRIL);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.MAY);
         });
     });
 
@@ -212,14 +354,199 @@ describe("<DateRangePicker>", () => {
             const minDate = new Date(2015, Months.JANUARY, 5);
             const initialMonth = new Date(2015, Months.FEBRUARY, 5);
             renderDateRangePicker({ initialMonth, minDate });
-            assert.strictEqual(dateRangePicker.state.displayMonth, Months.FEBRUARY);
+            assert.strictEqual(dateRangePicker.state.leftView.getMonth(), Months.FEBRUARY);
             let prevBtn = document.queryAll(".DayPicker-NavButton--prev");
             assert.lengthOf(prevBtn, 1);
 
             TestUtils.Simulate.click(prevBtn[0]);
-            assert.strictEqual(dateRangePicker.state.displayMonth, Months.JANUARY);
+            assert.strictEqual(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
             prevBtn = document.queryAll(".DayPicker-NavButton--prev");
             assert.lengthOf(prevBtn, 0);
+        });
+    });
+
+    describe("hover interactions", () => {
+
+        describe("when neither start nor end date is defined", () => {
+
+            it("should show a hovered range of [day, null]", () => {
+                renderDateRangePicker();
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                mouseEnterDay(14);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "14");
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+        });
+
+        describe("when only start date is defined", () => {
+
+            it("should show a hovered range of [start, day] if day > start", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                mouseEnterDay(18);
+                assert.lengthOf(getHoveredRangeDayElements(), 3);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "14");
+                assert.equal(getHoveredRangeEndDayElement().textContent, "18");
+            });
+
+            it("should show a hovered range of [null, null] if day === start", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                mouseEnterDay(14);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.isNull(getHoveredRangeStartDayElement());
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+            it("should show a hovered range of [day, start] if day < start", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                mouseEnterDay(10);
+                assert.lengthOf(getHoveredRangeDayElements(), 3);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "10");
+                assert.equal(getHoveredRangeEndDayElement().textContent, "14");
+            });
+
+            it("should not show a hovered range when mousing over a disabled date", () => {
+                renderDateRangePicker({
+                    maxDate: new Date(2017, Months.FEBRUARY, 1),
+                    minDate: new Date(2017, Months.JANUARY, 1),
+                });
+                clickDay(14); // Jan 14th
+                mouseEnterDay(5, false); // Feb 5th
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "14");
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+        });
+
+        describe("when only end date is defined", () => {
+
+            it("should show a hovered range of [end, day] if day > end", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+                clickDay(14); // deselect start date
+
+                mouseEnterDay(22);
+                assert.lengthOf(getHoveredRangeDayElements(), 3);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "18");
+                assert.equal(getHoveredRangeEndDayElement().textContent, "22");
+            });
+
+            it("should show a hovered range of [null, null] if day === end", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+                clickDay(14);
+
+                mouseEnterDay(18);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.isNull(getHoveredRangeStartDayElement());
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+            it("should show a hovered range of [day, end] if day < end", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+                clickDay(14);
+
+                mouseEnterDay(14);
+                assert.lengthOf(getHoveredRangeDayElements(), 3);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "14");
+                assert.equal(getHoveredRangeEndDayElement().textContent, "18");
+            });
+        });
+
+        describe("when both start and end date are defined", () => {
+
+            it("should show a hovered range of [null, end] if day === start", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+
+                mouseEnterDay(14);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.isNull(getHoveredRangeStartDayElement());
+                assert.equal(getHoveredRangeEndDayElement().textContent, "18");
+            });
+
+            it("should show a hovered range of [start, null] if day === end", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+
+                mouseEnterDay(18);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "14");
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+            it("should show a hovered range of [day, null] if start < day < end", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+
+                mouseEnterDay(16);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "16");
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+            it("should show a hovered range of [day, null] if day < start", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+
+                mouseEnterDay(10);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "10");
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+            it("should show a hovered range of [day, null] if day > end", () => {
+                renderDateRangePicker();
+                clickDay(14);
+                clickDay(18);
+
+                mouseEnterDay(22);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.equal(getHoveredRangeStartDayElement().textContent, "22");
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+
+            it("should show a hovered range of [null, null] if start === day === end", () => {
+                renderDateRangePicker({ allowSingleDayRange: true });
+                clickDay(14);
+                clickDay(14);
+
+                mouseEnterDay(14);
+                assert.lengthOf(getHoveredRangeDayElements(), 0);
+                assert.isNull(getHoveredRangeStartDayElement());
+                assert.isNull(getHoveredRangeEndDayElement());
+            });
+        });
+
+        it("hovering on day in month prior to selected start date's month, should not shift calendar view", () => {
+            const INITIAL_MONTH = Months.MARCH;
+            const MONTH_OUT_OF_VIEW = Months.JANUARY;
+            renderDateRangePicker({ initialMonth: new Date(2017, INITIAL_MONTH, 1) });
+
+            clickDay(14);
+            clickDay(18);
+
+            TestUtils.Simulate.change(getMonthSelect(), { target: { value: MONTH_OUT_OF_VIEW } } as any);
+
+            // hover on left month
+            mouseEnterDay(14);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), MONTH_OUT_OF_VIEW);
+
+            // hover on right month
+            mouseEnterDay(14, false);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), MONTH_OUT_OF_VIEW);
         });
     });
 
@@ -233,16 +560,25 @@ describe("<DateRangePicker>", () => {
             assert.equal(selectedDays[0].textContent, value[0].getDate());
         });
 
-        it("throws if a value without a start date but with an end date is provided", () => {
-            assert.throws(() => renderDateRangePicker({value: [null, new Date()]}),
-                Errors.DATERANGEPICKER_INVALID_DATE_RANGE);
-        });
-
         it("onChange fired when a day is clicked", () => {
             renderDateRangePicker({ value: [null, null] });
             assert.isTrue(onDateRangePickerChangeSpy.notCalled);
             clickDay();
             assert.isTrue(onDateRangePickerChangeSpy.calledOnce);
+        });
+
+        it("onHoverChange fired on mouseenter within a day", () => {
+            renderDateRangePicker({ value: [null, null] });
+            assert.isTrue(onDateRangePickerHoverChangeSpy.notCalled);
+            mouseEnterDay();
+            assert.isTrue(onDateRangePickerHoverChangeSpy.calledOnce);
+        });
+
+        it("onHoverChange fired on mouseleave within a day", () => {
+            renderDateRangePicker({ value: [null, null] });
+            assert.isTrue(onDateRangePickerHoverChangeSpy.notCalled);
+            mouseLeaveDay();
+            assert.isTrue(onDateRangePickerHoverChangeSpy.calledOnce);
         });
 
         it("selected day updates are not automatic", () => {
@@ -254,13 +590,13 @@ describe("<DateRangePicker>", () => {
 
         it("can change displayed date with the dropdowns in the caption", () => {
             renderDateRangePicker({ initialMonth: new Date(2015, Months.MARCH, 2), value: [null, null] });
-            assert.equal(dateRangePicker.state.displayMonth, Months.MARCH);
-            assert.equal(dateRangePicker.state.displayYear, 2015);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2015);
 
             TestUtils.Simulate.change(getMonthSelect(), { target: { value: Months.JANUARY } } as any);
             TestUtils.Simulate.change(getYearSelect(), { target: { value: 2014 } } as any);
-            assert.equal(dateRangePicker.state.displayMonth, Months.JANUARY);
-            assert.equal(dateRangePicker.state.displayYear, 2014);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2014);
         });
 
         it("shortcuts fire onChange with correct values", () => {
@@ -288,6 +624,59 @@ describe("<DateRangePicker>", () => {
             assert.isTrue(DateUtils.areSameDay(dateRange[0], onDateRangePickerChangeSpy.args[0][0][0]));
             assert.isTrue(DateUtils.areSameDay(dateRange[1], onDateRangePickerChangeSpy.args[0][0][1]));
         });
+
+        it("custom shortcuts set the displayed months correctly when start month changes", () => {
+            const dateRange = [new Date(2016, Months.JANUARY, 1), new Date(2016, Months.DECEMBER, 31)] as DateRange;
+            renderDateRangePicker({
+                initialMonth: new Date(2015, Months.JANUARY, 1),
+                shortcuts: [{label: "custom shortcut", dateRange}],
+            });
+
+            clickFirstShortcut();
+            assert.isTrue(onDateRangePickerChangeSpy.calledOnce);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2016);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.FEBRUARY);
+            assert.equal(dateRangePicker.state.rightView.getYear(), 2016);
+        });
+
+        it("custom shortcuts set the displayed months correctly when start month changes " +
+            "and contiguousCalendarMonths is false", () => {
+            const dateRange = [new Date(2016, Months.JANUARY, 1), new Date(2016, Months.DECEMBER, 31)] as DateRange;
+            renderDateRangePicker({
+                contiguousCalendarMonths: false,
+                initialMonth: new Date(2015, Months.JANUARY, 1),
+                shortcuts: [{label: "custom shortcut", dateRange}],
+            });
+
+            clickFirstShortcut();
+            assert.isTrue(onDateRangePickerChangeSpy.calledOnce);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2016);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.DECEMBER);
+            assert.equal(dateRangePicker.state.rightView.getYear(), 2016);
+        });
+
+        it("custom shortcuts set the displayed months correctly when start month stays the same", () => {
+            const dateRange = [new Date(2016, Months.JANUARY, 1), new Date(2016, Months.DECEMBER, 31)] as DateRange;
+            renderDateRangePicker({
+                initialMonth: new Date(2016, Months.JANUARY, 1),
+                shortcuts: [{label: "custom shortcut", dateRange}],
+            });
+
+            clickFirstShortcut();
+            assert.isTrue(onDateRangePickerChangeSpy.calledOnce);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2016);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.FEBRUARY);
+            assert.equal(dateRangePicker.state.rightView.getYear(), 2016);
+
+            clickFirstShortcut();
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2016);
+            assert.equal(dateRangePicker.state.rightView.getMonth(), Months.FEBRUARY);
+            assert.equal(dateRangePicker.state.rightView.getYear(), 2016);
+        });
     });
 
     describe("when uncontrolled", () => {
@@ -299,16 +688,41 @@ describe("<DateRangePicker>", () => {
             assert.equal(selectedDays[0].textContent, today.getDate());
         });
 
-        it("throws if a defaultValue without a start date but with an end date is provided", () => {
-            assert.throws(() => renderDateRangePicker({defaultValue: [null, new Date()]}),
-                Errors.DATERANGEPICKER_INVALID_DATE_RANGE);
-        });
-
         it("onChange fired when a day is clicked", () => {
             renderDateRangePicker();
             assert.isTrue(onDateRangePickerChangeSpy.notCalled);
             clickDay();
             assert.isTrue(onDateRangePickerChangeSpy.calledOnce);
+        });
+
+        it("onHoverChange fired with correct values when a day is clicked", () => {
+            const dateRange = [new Date(2015, Months.JANUARY, 1), new Date(2015, Months.JANUARY, 5)] as DateRange;
+            renderDateRangePicker({ initialMonth: new Date(2015, Months.JANUARY, 1) });
+            assert.isTrue(onDateRangePickerHoverChangeSpy.notCalled);
+            clickDay(1);
+            assert.isTrue(onDateRangePickerHoverChangeSpy.calledOnce);
+            assert.isTrue(DateUtils.areSameDay(dateRange[0], onDateRangePickerHoverChangeSpy.args[0][0][0]));
+            assert.isNull(onDateRangePickerHoverChangeSpy.args[0][0][1]);
+        });
+
+        it("onHoverChange fired with correct values on mouseenter within a day", () => {
+            const dateRange = [new Date(2015, Months.JANUARY, 1), new Date(2015, Months.JANUARY, 5)] as DateRange;
+            renderDateRangePicker({ initialMonth: new Date(2015, Months.JANUARY, 1) });
+            assert.isTrue(onDateRangePickerHoverChangeSpy.notCalled);
+            clickDay(1);
+            mouseEnterDay(5);
+            assert.isTrue(onDateRangePickerHoverChangeSpy.calledTwice);
+            assert.isTrue(DateUtils.areSameDay(dateRange[0], onDateRangePickerHoverChangeSpy.args[1][0][0]));
+            assert.isTrue(DateUtils.areSameDay(dateRange[1], onDateRangePickerHoverChangeSpy.args[1][0][1]));
+        });
+
+        it("onHoverChange fired with `undefined` on mouseleave within a day", () => {
+            renderDateRangePicker({ initialMonth: new Date(2015, Months.JANUARY, 1) });
+            assert.isTrue(onDateRangePickerHoverChangeSpy.notCalled);
+            clickDay(1);
+            mouseLeaveDay(5);
+            assert.isTrue(onDateRangePickerHoverChangeSpy.calledTwice);
+            assert.isUndefined(onDateRangePickerHoverChangeSpy.args[1][0]);
         });
 
         it("selected day updates are automatic", () => {
@@ -423,13 +837,13 @@ describe("<DateRangePicker>", () => {
 
         it("can change displayed date with the dropdowns in the caption", () => {
             renderDateRangePicker({ initialMonth: new Date(2015, Months.MARCH, 2) });
-            assert.equal(dateRangePicker.state.displayMonth, Months.MARCH);
-            assert.equal(dateRangePicker.state.displayYear, 2015);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2015);
 
             TestUtils.Simulate.change(getMonthSelect(), ({ target: { value: Months.JANUARY } } as any));
             TestUtils.Simulate.change(getYearSelect(), ({ target: { value: 2014 } } as any));
-            assert.equal(dateRangePicker.state.displayMonth, Months.JANUARY);
-            assert.equal(dateRangePicker.state.displayYear, 2014);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.JANUARY);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2014);
         });
 
         it("does not change display month when selecting dates from left month", () => {
@@ -437,8 +851,8 @@ describe("<DateRangePicker>", () => {
             clickDay(2);
             clickDay(15, false);
 
-            assert.equal(dateRangePicker.state.displayMonth, Months.MARCH);
-            assert.equal(dateRangePicker.state.displayYear, 2015);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2015);
         });
 
         it("does not change display month when selecting dates from right month", () => {
@@ -446,8 +860,8 @@ describe("<DateRangePicker>", () => {
             clickDay(2, false);
             clickDay(15, false);
 
-            assert.equal(dateRangePicker.state.displayMonth, Months.MARCH);
-            assert.equal(dateRangePicker.state.displayYear, 2015);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2015);
         });
 
         it("does not change display month when selecting dates from left and right month", () => {
@@ -455,8 +869,8 @@ describe("<DateRangePicker>", () => {
             clickDay(2);
             clickDay(15, false);
 
-            assert.equal(dateRangePicker.state.displayMonth, Months.MARCH);
-            assert.equal(dateRangePicker.state.displayYear, 2015);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.MARCH);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2015);
         });
 
         it("does not change display month when selecting dates across December (left) and January (right)", () => {
@@ -466,21 +880,34 @@ describe("<DateRangePicker>", () => {
             clickDay(15);
             clickDay(2, false);
 
-            assert.equal(dateRangePicker.state.displayMonth, Months.DECEMBER);
-            assert.equal(dateRangePicker.state.displayYear, 2015);
+            assert.equal(dateRangePicker.state.leftView.getMonth(), Months.DECEMBER);
+            assert.equal(dateRangePicker.state.leftView.getYear(), 2015);
         });
     });
 
     function renderDateRangePicker(props?: IDateRangePickerProps) {
         onDateRangePickerChangeSpy = sinon.spy();
+        onDateRangePickerHoverChangeSpy = sinon.spy();
         dateRangePicker = ReactDOM.render(
-            <DateRangePicker onChange={onDateRangePickerChangeSpy} {...props}/>,
+            <DateRangePicker
+                onChange={onDateRangePickerChangeSpy}
+                onHoverChange={onDateRangePickerHoverChangeSpy}
+                {...props}
+            />,
             testsContainerElement,
         ) as DateRangePicker;
     }
 
     function clickDay(dayNumber = 1, fromLeftMonth = true) {
         TestUtils.Simulate.click(getDayElement(dayNumber, fromLeftMonth));
+    }
+
+    function mouseEnterDay(dayNumber = 1, fromLeftMonth = true) {
+        TestUtils.Simulate.mouseEnter(getDayElement(dayNumber, fromLeftMonth));
+    }
+
+    function mouseLeaveDay(dayNumber = 1, fromLeftMonth = true) {
+        TestUtils.Simulate.mouseLeave(getDayElement(dayNumber, fromLeftMonth));
     }
 
     function clickFirstShortcut() {
@@ -498,8 +925,9 @@ describe("<DateRangePicker>", () => {
         })[0];
     }
 
-    function getMonthSelect() {
-        return document.getElementsByClassName(DateClasses.DATEPICKER_MONTH_SELECT)[0] as HTMLSelectElement;
+    function getMonthSelect(fromLeftView: boolean = true) {
+        const monthSelect = document.getElementsByClassName(DateClasses.DATEPICKER_MONTH_SELECT);
+        return fromLeftView ? monthSelect[0] : monthSelect[1];
     }
 
     function getOptionsText(selectElementClass: string): string[] {
@@ -511,12 +939,32 @@ describe("<DateRangePicker>", () => {
         return document.queryAll(`.${DateClasses.DATEPICKER_DAY_SELECTED}:not(.${DateClasses.DATEPICKER_DAY_OUTSIDE})`);
     }
 
+    /**
+     * Returns the selected range excluding endpoints.
+     */
     function getSelectedRangeDayElements() {
         const selectedRange = DateClasses.DATERANGEPICKER_DAY_SELECTED_RANGE;
         return document.queryAll(`.${selectedRange}:not(.${DateClasses.DATEPICKER_DAY_OUTSIDE})`);
     }
 
-    function getYearSelect() {
-        return document.getElementsByClassName(DateClasses.DATEPICKER_YEAR_SELECT)[0] as HTMLSelectElement;
+    /**
+     * Returns the hovered range excluding endpoints.
+     */
+    function getHoveredRangeDayElements() {
+        const selectedRange = DateClasses.DATERANGEPICKER_DAY_HOVERED_RANGE;
+        return document.queryAll(`.${selectedRange}:not(.${DateClasses.DATEPICKER_DAY_OUTSIDE})`);
+    }
+
+    function getHoveredRangeStartDayElement() {
+        return document.query(`.${DateClasses.DATERANGEPICKER_DAY_HOVERED_RANGE}-start`);
+    }
+
+    function getHoveredRangeEndDayElement() {
+        return document.query(`.${DateClasses.DATERANGEPICKER_DAY_HOVERED_RANGE}-end`);
+    }
+
+    function getYearSelect(fromLeftView: boolean = true) {
+        const yearSelect = document.getElementsByClassName(DateClasses.DATEPICKER_YEAR_SELECT);
+        return fromLeftView ? yearSelect[0] : yearSelect[1];
     }
 });

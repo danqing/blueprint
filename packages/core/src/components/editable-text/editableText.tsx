@@ -212,8 +212,11 @@ export class EditableText extends AbstractComponent<IEditableTextProps, IEditabl
     }
 
     public cancelEditing = () => {
-        const { lastValue } = this.state;
+        const { lastValue, value } = this.state;
         this.setState({ isEditing: false, value: lastValue });
+        if (value !== lastValue) {
+            safeInvoke(this.props.onChange, lastValue);
+        }
         safeInvoke(this.props.onCancel, lastValue);
     }
 
@@ -293,7 +296,8 @@ export class EditableText extends AbstractComponent<IEditableTextProps, IEditabl
     private updateInputDimensions() {
         if (this.valueElement != null) {
             const { maxLines, minLines, minWidth, multiline } = this.props;
-            let { parentElement, scrollHeight, scrollWidth, textContent } = this.valueElement;
+            const { parentElement, textContent } = this.valueElement;
+            let { scrollHeight, scrollWidth } = this.valueElement;
             const lineHeight = getLineHeight(this.valueElement);
             // add one line to computed <span> height if text ends in newline
             // because <span> collapses that trailing whitespace but <textarea> shows it

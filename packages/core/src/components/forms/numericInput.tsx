@@ -74,6 +74,18 @@ export interface INumericInputProps extends IIntentProps, IProps {
     minorStepSize?: number;
 
     /**
+     * Whether the entire text field should be selected on focus.
+     * @default false
+     */
+    selectAllOnFocus?: boolean;
+
+    /**
+     * Whether the entire text field should be selected on increment.
+     * @default false
+     */
+    selectAllOnIncrement?: boolean;
+
+    /**
      * The increment between successive values when no modifier keys are held.
      * @default 1
      */
@@ -90,6 +102,7 @@ export interface INumericInputState {
     isInputGroupFocused?: boolean;
     isButtonGroupFocused?: boolean;
     shouldSelectAfterUpdate?: boolean;
+    stepMaxPrecision?: number;
     value?: string;
 }
 
@@ -102,11 +115,16 @@ enum IncrementDirection {
 export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInputProps, INumericInputState> {
     public static displayName = "Blueprint.NumericInput";
 
+    public static VALUE_EMPTY = "";
+    public static VALUE_ZERO = "0";
+
     public static defaultProps: INumericInputProps = {
         allowNumericCharactersOnly: true,
         buttonPosition: Position.RIGHT,
         majorStepSize: 10,
         minorStepSize: 0.1,
+        selectAllOnFocus: false,
+        selectAllOnIncrement: false,
         stepSize: 1,
         value: NumericInput.VALUE_EMPTY,
     };
@@ -116,9 +134,6 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
 
     private static DECREMENT_ICON_NAME = "chevron-down";
     private static INCREMENT_ICON_NAME = "chevron-up";
-
-    private static VALUE_EMPTY = "";
-    private static VALUE_ZERO = "0";
 
     /**
      * A regex that matches a string of length 1 (i.e. a standalone character)
@@ -141,6 +156,7 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
 
         this.state = {
             shouldSelectAfterUpdate: false,
+            stepMaxPrecision: this.getStepMaxPrecision(props),
             value: this.getValueOrEmptyValue(props.value),
         };
     }
@@ -154,19 +170,19 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
         const didMaxChange = nextProps.max !== this.props.max;
         const didBoundsChange = didMinChange || didMaxChange;
 
+        const sanitizedValue = (value !== NumericInput.VALUE_EMPTY)
+            ? this.getSanitizedValue(value, /* delta */ 0, nextProps.min, nextProps.max)
+            : NumericInput.VALUE_EMPTY;
+
+        const stepMaxPrecision = this.getStepMaxPrecision(nextProps);
+
         // if a new min and max were provided that cause the existing value to fall
         // outside of the new bounds, then clamp the value to the new valid range.
-        if (didBoundsChange) {
-            const sanitizedValue = (value !== NumericInput.VALUE_EMPTY)
-                ? this.getSanitizedValue(value, /* delta */ 0, nextProps.min, nextProps.max)
-                : NumericInput.VALUE_EMPTY;
-
-            if (sanitizedValue !== this.state.value) {
-                this.setState({ value: sanitizedValue });
-                this.invokeOnChangeCallbacks(sanitizedValue);
-            }
+        if (didBoundsChange && sanitizedValue !== this.state.value) {
+            this.setState({ stepMaxPrecision, value: sanitizedValue });
+            this.invokeOnChangeCallbacks(sanitizedValue);
         } else {
-            this.setState({ value });
+            this.setState({ stepMaxPrecision, value });
         }
     }
 
@@ -176,9 +192,12 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
         const inputGroupHtmlProps = removeNonHTMLProps(this.props, [
             "allowNumericCharactersOnly",
             "buttonPosition",
+            "className",
             "majorStepSize",
             "minorStepSize",
             "onValueChange",
+            "selectAllOnFocus",
+            "selectAllOnIncrement",
             "stepSize",
         ], true);
 
@@ -218,7 +237,7 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
                 NumericInput.DECREMENT_KEY, NumericInput.DECREMENT_ICON_NAME, this.handleDecrementButtonClick);
 
             const buttonGroup = (
-                <div key="button-group" className={classNames(Classes.BUTTON_GROUP, Classes.VERTICAL)}>
+                <div key="button-group" className={classNames(Classes.BUTTON_GROUP, Classes.VERTICAL, Classes.FIXED)}>
                     {incrementButton}
                     {decrementButton}
                 </div>
@@ -340,12 +359,14 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
     // =================
 
     private handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-        this.setState({ isInputGroupFocused: true });
+        this.setState({ isInputGroupFocused: true, shouldSelectAfterUpdate: this.props.selectAllOnFocus });
         Utils.safeInvoke(this.props.onFocus, e);
     }
 
     private handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-        this.setState({ isInputGroupFocused: false });
+        // explicitly set `shouldSelectAfterUpdate` to `false` to prevent focus
+        // hoarding on IE11 (#704)
+        this.setState({ isInputGroupFocused: false, shouldSelectAfterUpdate: false });
         Utils.safeInvoke(this.props.onBlur, e);
     }
 
@@ -427,7 +448,7 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
         const currValue = this.state.value || NumericInput.VALUE_ZERO;
         const nextValue = this.getSanitizedValue(currValue, delta, this.props.min, this.props.max);
 
-        this.setState({ shouldSelectAfterUpdate : true, value: nextValue });
+        this.setState({ shouldSelectAfterUpdate : this.props.selectAllOnIncrement, value: nextValue });
         this.invokeOnChangeCallbacks(nextValue);
     }
 
@@ -448,9 +469,7 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
             return NumericInput.VALUE_EMPTY;
         }
 
-        // truncate floating-point result to avoid precision issues when adding
-        // non-integer, binary-unfriendly deltas like 0.1
-        let nextValue = parseFloat((parseFloat(value) + delta).toFixed(2));
+        let nextValue = this.toMaxPrecision(parseFloat(value) + delta);
 
         // defaultProps won't work if the user passes in null, so just default
         // to +/- infinity here instead, as a catch-all.
@@ -504,6 +523,22 @@ export class NumericInput extends AbstractComponent<HTMLInputProps & INumericInp
 
     private isFloatingPointNumericCharacter(char: string) {
         return NumericInput.FLOATING_POINT_NUMBER_CHARACTER_REGEX.test(char);
+    }
+
+    private getStepMaxPrecision(props: HTMLInputProps & INumericInputProps) {
+        if (props.minorStepSize != null) {
+            return Utils.countDecimalPlaces(props.minorStepSize);
+        } else {
+            return Utils.countDecimalPlaces(props.stepSize);
+        }
+    }
+
+    private toMaxPrecision(value: number) {
+        // round the value to have the specified maximum precision (toFixed is the wrong choice,
+        // because it would show trailing zeros in the decimal part out to the specified precision)
+        // source: http://stackoverflow.com/a/18358056/5199574
+        const scaleFactor = Math.pow(10, this.state.stepMaxPrecision);
+        return Math.round(value * scaleFactor) / scaleFactor;
     }
 }
 

@@ -65,7 +65,7 @@ $options-margin: $pt-grid-size * 3;
     margin-bottom: $options-margin;
   }
 
-  .pt-input-group + .pt-input-group {
+  :not(.pt-control-group) > .pt-input-group + .pt-input-group {
     margin-top: $pt-grid-size * 2;
   }
 }
@@ -136,7 +136,6 @@ $options-margin: $pt-grid-size * 3;
     $pt-transition-ease-bounce,
     $before: "&"
   );
-
   @include react-transition-phase(
     "pt-overlay",
     "leave",
@@ -190,6 +189,14 @@ $options-margin: $pt-grid-size * 3;
   .docs-react-example {
     flex-direction: column;
   }
+}
+
+.docs-tabs2-example .pt-navbar .pt-tab {
+  line-height: $pt-navbar-height;
+}
+
+.kss-example-wrapper .pt-navbar {
+  position: static;
 }
 
 .docs-tag-example .pt-tag:not(:last-child) {
